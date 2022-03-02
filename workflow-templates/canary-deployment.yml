@@ -1,0 +1,93 @@
+name: "Canary Deployment"
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  CLUSTER_NAME: !AKS-NAME!
+  RESOURCE_GROUP: !RG-NAME!
+  NAMESPACE: canary-ns
+  IMAGE_NAME: vote-frontend-app
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Checkout repository"
+      uses: actions/checkout@master
+      with:
+        fetch-depth: 2
+    
+    - uses: Azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.REGISTRY_URL }}
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+    
+    - name: "Build and push to container registry"
+      run: |
+        docker build . -t ${{ secrets.REGISTRY_URL }}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        docker push ${{ secrets.REGISTRY_URL }}/${{env.IMAGE_NAME}}:${{ github.sha }}
+
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Get code from github repo"
+      uses: actions/checkout@master
+
+    - name: "Set the target AKS cluster"
+      uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: ${{ env.CLUSTER_NAME }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
+
+    # - name: "Create the namespace if it does not exist"
+    #   run: |
+    #     kubectl create ns ${{env.NAMESPACE}} --dry-run -o json | kubectl apply -f -
+
+    - name: "Create the namespace"
+      uses: Azure/k8s-deploy@v1.4
+      with:
+        manifests: |
+          manifests/canary-namespace.yml
+
+    - name: "Create container registry image pull secret"
+      uses: Azure/k8s-create-secret@v1
+      with:
+        container-registry-url: ${{ secrets.REGISTRY_URL }}
+        container-registry-username: ${{ secrets.REGISTRY_USERNAME }}
+        container-registry-password: ${{ secrets.REGISTRY_PASSWORD }}
+        secret-name: acr-secret
+        namespace: ${{env.NAMESPACE}}
+
+    - name: "Deploy azure vote back"
+      uses: Azure/k8s-deploy@v1.4
+      timeout-minutes: 5
+      with:
+        namespace: ${{env.NAMESPACE}}
+        manifests: |
+          manifests/back.yml
+          manifests/service-back.yml
+
+    - name: "Deploy azure vote front"
+      uses: Azure/k8s-deploy@v1.4
+      timeout-minutes: 5
+      with:
+        namespace: ${{env.NAMESPACE}}
+        manifests: |
+          manifests/service-front.yml
+          manifests/canary-ingress.yml
+          manifests/front.yml
+        images: |
+          ${{secrets.REGISTRY_URL}}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        imagepullsecrets: |
+          acr-secret
+        strategy: canary
+        action: deploy
+        traffic-split-method: smi
+        percentage: 30
+        baseline-and-canary-replicas: 1

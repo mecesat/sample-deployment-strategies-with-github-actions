@@ -1,0 +1,48 @@
+name: "Promote or Reject Blue Green Deployment"
+
+on: 
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Enter promote or reject for Blue-Green Deployment'
+        required: true
+        default: 'promote'
+
+env:
+  CLUSTER_NAME: !AKS-NAME!
+  RESOURCE_GROUP: !RG-NAME!
+  NAMESPACE: blue-green-ns
+  IMAGE_NAME: vote-frontend-app
+
+jobs:
+  promote_or_reject:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: "Get code from github repo"
+      uses: actions/checkout@master
+
+    - name: "Set the target AKS cluster"
+      uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: ${{ env.CLUSTER_NAME }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
+
+    - name: "Promote/Reject the blue-green deplotment for azure vote front"
+      uses: Azure/k8s-deploy@v1.4
+      timeout-minutes: 5
+      with:
+        namespace: ${{env.NAMESPACE}}
+        manifests: |
+          manifests/service-front.yml
+          manifests/blue-green-ingress.yml
+          manifests/front.yml
+        images: |
+          ${{secrets.REGISTRY_URL}}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        imagepullsecrets: |
+          acr-secret
+        strategy: blue-green
+        action: ${{ github.event.inputs.action }}
+        route-method: smi # substitute with service/smi as per need
+    

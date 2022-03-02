@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blue-green-ingress
+  namespace: blue-green-ns
+  annotations:
+    kubernetes.io/ingress.class: addon-http-application-routing
+spec:
+  rules:
+    - host: blue-green-app.!DNS!
+      http:
+        paths:
+          - backend:
+              service:
+                name: vote-frontend
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix

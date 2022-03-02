@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: canary-ingress
+  namespace: canary-ns
+  annotations:
+    kubernetes.io/ingress.class: addon-http-application-routing
+spec:
+  rules:
+    - host: canary-app.!DNS!
+      http:
+        paths:
+          - backend:
+              service:
+                name: vote-frontend
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix

@@ -1,0 +1,47 @@
+name: "Promote or Reject Canary Release"
+
+on: 
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Enter promote or reject for canary release'     
+        required: true
+        default: 'promote'
+
+env:
+  CLUSTER_NAME: !AKS-NAME!
+  RESOURCE_GROUP: !RG-NAME!
+  NAMESPACE: canary-ns
+  IMAGE_NAME: vote-frontend-app
+
+jobs:
+  promote_or_reject:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: "Get code from github repo"
+      uses: actions/checkout@master
+
+    - name: "Set the target AKS cluster"
+      uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: ${{ env.CLUSTER_NAME }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
+
+    - name: "Promote/Reject the canary release for azure vote front"
+      uses: Azure/k8s-deploy@v1.4
+      timeout-minutes: 5
+      with:
+        namespace: ${{env.NAMESPACE}}
+        manifests: |
+          manifests/service-front.yml
+          manifests/canary-ingress.yml
+          manifests/front.yml
+        images: |
+          ${{secrets.REGISTRY_URL}}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        imagepullsecrets: |
+          acr-secret
+        strategy: canary
+        action: ${{ github.event.inputs.action }}
+        traffic-split-method: smi
