@@ -1,0 +1,38 @@
+name: "Rollout Deployment"
+
+on:
+  workflow_dispatch:
+
+env:
+  CLUSTER_NAME: aks-vote-app
+  RESOURCE_GROUP: github-cd-poc-15856
+  NAMESPACE: demo-ns
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Get code from github repo"
+      uses: actions/checkout@master
+
+    - name: "Set the target AKS cluster"
+      uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: ${{ env.CLUSTER_NAME }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
+
+    - uses: azure/k8s-bake@v2
+      with:
+        renderEngine: "helm"
+        helmChart: "./helm-charts/namespace"
+        overrideFiles: "./helm-charts/namespace/values-override.yaml"
+        overrides: |
+          namespace.name:${{ env.NAMESPACE }}
+        helm-version: "latest"
+      id: bake
+
+    - uses: Azure/k8s-deploy@v1.2
+      with:
+        action: deploy
+        manifests: ${{ steps.bake.outputs.manifestsBundle }}
