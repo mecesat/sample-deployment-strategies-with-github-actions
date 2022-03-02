@@ -26,7 +26,7 @@ jobs:
       with:
         renderEngine: "helm"
         helmChart: "./helm-charts/namespace"
-        overrideFiles: "./helm-charts/namespace/values-override.yaml"
+        #overrideFiles: "./helm-charts/namespace/values-override.yaml"
         overrides: |
           namespace.name:${{ env.NAMESPACE }}
         helm-version: "latest"
