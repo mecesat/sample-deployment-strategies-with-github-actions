@@ -2,8 +2,8 @@
 
 echo "Defining variables..."
 export RESOURCE_GROUP_NAME=github-cd-poc-$RANDOM
-export AKS_NAME=aks-voting-service
-export ACR_NAME=VotingAppContainerRegistry$RANDOM
+export AKS_NAME=aks-vote-app
+export ACR_NAME=VoteAppContainerRegistry$RANDOM
 
 echo "Searching for resource group..."
 az group create -n $RESOURCE_GROUP_NAME -l eastus
