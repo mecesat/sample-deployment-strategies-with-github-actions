@@ -13,7 +13,7 @@ az aks create \
   --resource-group $RESOURCE_GROUP_NAME \
   --name $AKS_NAME \
   --node-count 1 \
-  --enable-addons monitoring, http_application_routing \
+  --enable-addons http_application_routing \
   --dns-name-prefix $AKS_NAME \
   --enable-managed-identity \
   --generate-ssh-keys \
