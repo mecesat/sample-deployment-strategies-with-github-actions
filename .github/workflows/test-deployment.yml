@@ -1,4 +1,4 @@
-name: "Rollout Deployment"
+name: "create-namespace"
 
 on:
   workflow_dispatch:
@@ -26,7 +26,6 @@ jobs:
       with:
         renderEngine: "helm"
         helmChart: "./helm-charts/namespace"
-        #overrideFiles: "./helm-charts/namespace/values-override.yaml"
         overrides: |
           namespace.name:${{ env.NAMESPACE }}
         helm-version: "latest"
