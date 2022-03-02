@@ -1,0 +1,4 @@
+apiVersion: v2
+name: backend-app
+description: Backend service for Vote Application
+version: 0.1.0

@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-ingress
+  namespace: {{ .Values.namespace.name }}
+  annotations:
+    kubernetes.io/ingress.class: addon-http-application-routing
+spec:
+  rules:
+    - host: vote-{{ .Values.strategy.name }}.{{ .Values.dns.name }}
+      http:
+        paths:
+          - backend:
+              service:
+                name: vote-frontend
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix

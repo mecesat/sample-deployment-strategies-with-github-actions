@@ -1,0 +1,16 @@
+image:
+  registry: <your-acr-name>
+  name: image-name
+  tag: latest
+  
+namespace:
+  name: default
+
+replicas:
+  count: 3
+
+strategy:
+  name: rollout
+
+dns:
+  name: example.com
