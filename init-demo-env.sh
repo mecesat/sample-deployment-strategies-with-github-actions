@@ -35,9 +35,10 @@ az aks update \
     --attach-acr $ACR_NAME
 
 export DNS_NAME=$(az network dns zone list -o json --query "[?contains(resourceGroup,'$RESOURCE_GROUP_NAME')].name" -o tsv)
+export ACR_URL=$(az acr list --query "[?contains(resourceGroup, 'github-cd-poc')].loginServer" -o tsv)
 
 echo "Adding ACR_NAME to deployment yaml file..."
-sed -i '' 's+!IMAGE!+'"$ACR_NAME"'/vote-frontend-app+g' manifests/frontend-deployment.yml
+sed -i '' 's+!IMAGE!+'"$ACR_URL"'/vote-frontend-app+g' manifests/frontend-deployment.yml
 
 echo "Adding DNS to ingress yaml files..."
 sed -i '' 's+!DNS!+'"$DNS_NAME"'+g' manifests/rollout-ingress.yml
@@ -79,8 +80,9 @@ cp workflow-templates/* .github/workflows/
 
 echo "Installation concluded, copy these values and store them"
 echo "-> Resource Group Name: $RESOURCE_GROUP_NAME"
+echo "-> ACR URL: $ACR_URL"
 echo "-> ACR Name: $ACR_NAME"
 echo "-> ACR Login Username: $ACR_USERNAME"
 echo "-> ACR Password: $ACR_PASSWORD"
-echo "-> AKS Cluster Name: $ACR_NAME"
+echo "-> AKS Cluster Name: $AKS_NAME"
 echo "-> AKS DNS Zone Name: $DNS_NAME"
