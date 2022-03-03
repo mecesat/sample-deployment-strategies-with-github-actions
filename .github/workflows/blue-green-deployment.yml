@@ -114,5 +114,5 @@ jobs:
           acr-secret
         strategy: blue-green
         action: deploy
-        route-method: service # substitute with ingress/smi as per need
+        route-method: ingress # substitute with ingress/smi as per need
         version-switch-buffer: 2
