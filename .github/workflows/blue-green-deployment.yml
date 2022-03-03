@@ -103,7 +103,7 @@ jobs:
 
     - name: "Deploy vote frontend"
       uses: Azure/k8s-deploy@v3.0
-      timeout-minutes: 5
+      #timeout-minutes: 5
       with:
         # action: deploy
         namespace: ${{env.NAMESPACE}}
@@ -115,4 +115,4 @@ jobs:
         strategy: blue-green
         action: deploy
         route-method: service # substitute with ingress/smi as per need
-        version-switch-buffer: 10
+        version-switch-buffer: 2
