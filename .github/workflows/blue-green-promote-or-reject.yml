@@ -1,0 +1,61 @@
+name: "Promote-or-Reject-Blue-Green-Deployment"
+
+on: 
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Enter promote or reject for blue-green deployment'     
+        required: true
+        default: 'promote'
+
+env:
+  CLUSTER_NAME: aks-vote-app
+  RESOURCE_GROUP: github-cd-poc-15856
+  NAMESPACE: blue-green-ns
+  IMAGE_NAME: vote-frontend-app
+
+jobs:
+  promote_or_reject:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: "Get code from github repo"
+      uses: actions/checkout@master
+
+    - name: "Set the target AKS cluster"
+      uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: ${{ env.CLUSTER_NAME }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
+
+    - uses: azure/k8s-bake@v2
+      with:
+        renderEngine: "helm"
+        helmChart: "./helm-charts/frontend-app"
+        overrides: |
+          namespace.name:${{ env.NAMESPACE }}
+          image.registry:${{secrets.ACR_URL}}
+          image.name:${{env.IMAGE_NAME}}
+          image.tag:${{ github.sha }}
+          replicas.count:3
+          strategy.name:blue-green
+          dns.name:${{secrets.DNS_NAME}}
+        helm-version: "latest"
+      id: bake-frontend
+
+    - name: "Deploy vote frontend"
+      uses: Azure/k8s-deploy@v1.2
+      timeout-minutes: 5
+      with:
+        # action: deploy
+        namespace: ${{env.NAMESPACE}}
+        manifests: ${{ steps.bake-frontend.outputs.manifestsBundle }}
+        images: |
+          ${{secrets.ACR_URL}}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        imagepullsecrets: |
+          acr-secret
+        strategy: blue-green
+        action: ${{ github.event.inputs.action }}
+        route-method: service # substitute with ingress/smi as per need
+        
