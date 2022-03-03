@@ -1,0 +1,119 @@
+name: "Canary-Deployment"
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  CLUSTER_NAME: aks-vote-app
+  RESOURCE_GROUP: github-cd-poc-15856
+  NAMESPACE: canary-ns
+  IMAGE_NAME: vote-frontend-app
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Checkout repository"
+      uses: actions/checkout@master
+      with:
+        fetch-depth: 2
+    
+    - uses: Azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.ACR_URL }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: "Build and push to container registry"
+      run: |
+        docker build . -t ${{ secrets.ACR_URL }}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        docker push ${{ secrets.ACR_URL }}/${{env.IMAGE_NAME}}:${{ github.sha }}
+
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Get code from github repo"
+      uses: actions/checkout@master
+
+    - name: "Set the target AKS cluster"
+      uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: ${{ env.CLUSTER_NAME }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
+
+    - uses: azure/k8s-bake@v2
+      with:
+        renderEngine: "helm"
+        helmChart: "./helm-charts/namespace"
+        overrides: |
+          namespace.name:${{ env.NAMESPACE }}
+        helm-version: "latest"
+      id: bake-namespace
+
+    - name: "Create namespace"
+      uses: Azure/k8s-deploy@v1.2
+      with:
+        # action: deploy
+        namespace: ${{env.NAMESPACE}}
+        manifests: ${{ steps.bake-namespace.outputs.manifestsBundle }}
+
+    - name: "Create container registry image pull secret"
+      uses: Azure/k8s-create-secret@v1
+      with:
+        container-registry-url: ${{ secrets.ACR_URL }}
+        container-registry-username: ${{ secrets.ACR_USERNAME }}
+        container-registry-password: ${{ secrets.ACR_PASSWORD }}
+        secret-name: acr-secret
+        namespace: ${{env.NAMESPACE}}
+
+    - uses: azure/k8s-bake@v2
+      with:
+        renderEngine: "helm"
+        helmChart: "./helm-charts/backend-app"
+        overrides: |
+          namespace.name:${{ env.NAMESPACE }}
+        helm-version: "latest"
+      id: bake-backend
+
+    - name: "Deploy vote backend"
+      uses: Azure/k8s-deploy@v1.2
+      with:
+        # action: deploy
+        namespace: ${{env.NAMESPACE}}
+        manifests: ${{ steps.bake-backend.outputs.manifestsBundle }}
+
+    - uses: azure/k8s-bake@v2
+      with:
+        renderEngine: "helm"
+        helmChart: "./helm-charts/frontend-app"
+        overrides: |
+          namespace.name:${{ env.NAMESPACE }}
+          image.registry:${{secrets.ACR_URL}}
+          image.name:${{env.IMAGE_NAME}}
+          image.tag:${{ github.sha }}
+          replicas.count:3
+          strategy.name:canary
+          dns.name:${{secrets.DNS_NAME}}
+        helm-version: "latest"
+      id: bake-frontend
+
+    - name: "Deploy vote frontend"
+      uses: Azure/k8s-deploy@v1.2
+      timeout-minutes: 5
+      with:
+        # action: deploy
+        namespace: ${{env.NAMESPACE}}
+        manifests: ${{ steps.bake-frontend.outputs.manifestsBundle }}
+        images: |
+          ${{secrets.ACR_URL}}/${{env.IMAGE_NAME}}:${{ github.sha }}
+        imagepullsecrets: |
+          acr-secret
+        strategy: canary
+        action: deploy
+        traffic-split-method: pod
+        percentage: 30
+        baseline-and-canary-replicas: 2
