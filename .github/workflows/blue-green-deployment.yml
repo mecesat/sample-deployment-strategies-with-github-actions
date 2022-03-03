@@ -115,4 +115,4 @@ jobs:
         strategy: blue-green
         action: deploy
         route-method: service # substitute with ingress/smi as per need
-        version-switch-buffer: 10
+        version-switch-buffer: 2
