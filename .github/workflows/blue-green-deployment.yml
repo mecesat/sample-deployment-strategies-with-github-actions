@@ -55,7 +55,7 @@ jobs:
       id: bake-namespace
 
     - name: "Create namespace"
-      uses: Azure/k8s-deploy@v1.2
+      uses: Azure/k8s-deploy@v1.4
       with:
         # action: deploy
         namespace: ${{env.NAMESPACE}}
@@ -80,7 +80,7 @@ jobs:
       id: bake-backend
 
     - name: "Deploy vote backend"
-      uses: Azure/k8s-deploy@v1.2
+      uses: Azure/k8s-deploy@v1.4
       with:
         # action: deploy
         namespace: ${{env.NAMESPACE}}
@@ -102,7 +102,7 @@ jobs:
       id: bake-frontend
 
     - name: "Deploy vote frontend"
-      uses: Azure/k8s-deploy@v1.2
+      uses: Azure/k8s-deploy@v1.4
       timeout-minutes: 5
       with:
         # action: deploy
