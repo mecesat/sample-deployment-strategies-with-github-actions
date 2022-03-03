@@ -55,7 +55,7 @@ jobs:
       id: bake-namespace
 
     - name: "Create namespace"
-      uses: Azure/k8s-deploy@v1.4
+      uses: Azure/k8s-deploy@v3.0
       with:
         # action: deploy
         namespace: ${{env.NAMESPACE}}
@@ -80,7 +80,7 @@ jobs:
       id: bake-backend
 
     - name: "Deploy vote backend"
-      uses: Azure/k8s-deploy@v1.4
+      uses: Azure/k8s-deploy@v3.0
       with:
         # action: deploy
         namespace: ${{env.NAMESPACE}}
@@ -102,7 +102,7 @@ jobs:
       id: bake-frontend
 
     - name: "Deploy vote frontend"
-      uses: Azure/k8s-deploy@v1.4
+      uses: Azure/k8s-deploy@v3.0
       timeout-minutes: 5
       with:
         # action: deploy
@@ -115,4 +115,4 @@ jobs:
         strategy: blue-green
         action: deploy
         route-method: service # substitute with ingress/smi as per need
-        version-switch-buffer: 2
+        version-switch-buffer: 10
